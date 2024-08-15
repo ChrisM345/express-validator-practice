@@ -1,0 +1,93 @@
+const usersStorage = require("../storages/usersStorage.js");
+const { body, validationResult } = require("express-validator");
+
+const alphaErr = "must only contain letters.";
+const lengthErr = "must be between 1 and 10 characters";
+const ageErr = "must be a number between 18 and 120";
+
+const validateUser = [
+  body("firstName")
+    .trim()
+    .isAlpha()
+    .withMessage(`First name ${alphaErr}`)
+    .isLength({ min: 1, max: 10 })
+    .withMessage(`First name ${lengthErr}`),
+  body("lastName")
+    .trim()
+    .isAlpha()
+    .withMessage(`Last name ${alphaErr}`)
+    .isLength({ min: 1, max: 10 })
+    .withMessage(`Last name ${lengthErr}`),
+  body("age").trim().if(body("age").notEmpty()).isInt({ min: 18, max: 120 }).withMessage(`Age ${ageErr}`),
+];
+
+module.exports = {
+  usersListGet: (req, res) => {
+    res.render("index", {
+      title: "User list",
+      users: usersStorage.getUsers(),
+    });
+  },
+  usersCreateGet: (req, res) => {
+    res.render("createUser", {
+      title: "Create User",
+    });
+  },
+  usersCreatePost: [
+    validateUser,
+    (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).render("createUser", {
+          title: "Create User",
+          errors: errors.array(),
+        });
+      }
+      const { firstName, lastName, email, age, bio } = req.body;
+      usersStorage.addUser({ firstName, lastName, email, age, bio });
+      res.redirect("/");
+    },
+  ],
+  usersUpdateGet: (req, res) => {
+    const user = usersStorage.getUser(req.params.id);
+    res.render("updateUser", {
+      title: "Update User",
+      user: user,
+    });
+  },
+  usersUpdatePost: [
+    validateUser,
+    (req, res) => {
+      const user = usersStorage.getUser(req.params.id);
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).render("updateUser", {
+          title: "Update User",
+          user: user,
+          errors: errors.array(),
+        });
+      }
+      const { firstName, lastName, email, age, bio } = req.body;
+      usersStorage.updateUser(req.params.id, { firstName, lastName, email, age, bio });
+      res.redirect("/");
+    },
+  ],
+  usersDeletePost: (req, res) => {
+    usersStorage.deleteUser(req.params.id);
+    res.redirect("/");
+  },
+  usersSearchGet: (req, res) => {
+    res.render("search", {
+      title: "Search Users",
+    });
+  },
+  getSearchResults: (req, res) => {
+    const { name, email } = req.body;
+    const users = res.render("searchResults", {
+      title: "Search Results",
+      name: name,
+      email: email,
+      users: usersStorage.getUsers(),
+    });
+  },
+};
